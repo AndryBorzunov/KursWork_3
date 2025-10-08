@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "kurswork-3"
+version = "0.1.0"
+description = ""
+authors = ["Борзунов Андрей <andry73@yandex.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
