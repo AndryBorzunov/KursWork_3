@@ -10,6 +10,8 @@ python = "^3.10"
 poetry-core = "^2.2.1"
 psycopg2-binary = "^2.9.10"
 types-psycopg2 = "^2.9.21.20251012"
+requests = "^2.32.5"
+types-requests = "^2.32.4.20250913"
 
 [tool.poetry.group.lint.dependencies]
 flake8 = "^7.3.0"

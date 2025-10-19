@@ -1,15 +1,28 @@
+from typing import Any
+
 import psycopg2
 from psycopg2 import Error
 from psycopg2.extensions import connection, cursor
-from typing import Any
 
 
 class DBManager:
+    """
+    Класс позволяет работать с БД PostreSQL.
+    Сохраняет полученные данные о вакансиях и работодателях в таблицы БД
+    Реализованы функции для получения данных из БД
+    """
 
     __params: dict
     __db_name: str
 
     def __init__(self, db_name: str, params: dict, data: list[dict[str, Any]]) -> None:
+        """
+        Инициализация класса. Если база данных не существует, то создаёт её.
+        Удаляет старые данные из таблиц и заполняет новыми данными
+        :param db_name: имя базы данных
+        :param params: параметры для подключения к базе данных
+        :param data: данные о вакансиях, полученные с hh.ru
+        """
 
         conn: connection = None
         cur: cursor = None
@@ -22,7 +35,8 @@ class DBManager:
             cur = conn.cursor()
             print("Соединение установлено!")
 
-            cur.execute(f"DROP DATABASE {db_name}")
+            # cur.execute(f"DROP DATABASE {db_name}")
+
             # Создаём БД
             self.__create_db(db_name, conn)
             conn.close()
@@ -95,15 +109,15 @@ class DBManager:
                 print("Создаём таблицу employers")
                 cur.execute(
                     """
-                          CREATE TABLE employers (
-                          employer_id SERIAL PRIMARY KEY,
-                          name VARCHAR(255) NOT NULL
-                          )
+                    CREATE TABLE employers (
+                    employer_id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL
+                    )
                     """
                 )
             else:
-                cur.execute("SELECT * FROM employers")
-                print(cur.fetchall())
+                # Удалим данные из таблицы
+                cur.execute("TRUNCATE TABLE employers RESTART IDENTITY CASCADE")
 
         conn.commit()
 
@@ -132,23 +146,23 @@ class DBManager:
                 )
                 conn.commit()
             else:
-                cur.execute("SELECT * FROM vacancies")
-                print(cur.fetchall())
+                # Удалим данные из таблицы
+                cur.execute("TRUNCATE TABLE vacancies RESTART IDENTITY")
 
     @classmethod
-    def __save_data_to_database(cls, data: list[dict[str, Any]], conn: connection):
-        """ Сохранение данных в базу данных """
+    def __save_data_to_database(cls, data: list[dict[str, Any]], conn: connection) -> None:
+        """Сохранение данных в базу данных"""
 
         with conn.cursor() as cur:
 
             employers = []
             employer_names = []
             for employer in data:
-                if 'employer' in employer:
+                if "employer" in employer:
 
-                    firm_name = employer['employer']['name']
+                    firm_name = employer["employer"]["name"]
 
-                    print(firm_name)
+                    # print(firm_name)
                     if firm_name not in employer_names:
 
                         cur.execute(
@@ -157,7 +171,7 @@ class DBManager:
                             VALUES (%s)
                             RETURNING employer_id
                             """,
-                            (firm_name, )
+                            (firm_name,),
                         )
                         employer_id = cur.fetchone()[0]
                         employers.append({"employer_id": employer_id, "name": firm_name})
@@ -167,14 +181,20 @@ class DBManager:
 
             for employer in employers:
                 for vacancy in data:
-                    if 'employer' in vacancy:
-                        if vacancy['employer']['name'] == employer['name']:
+                    if "employer" in vacancy:
+                        if vacancy["employer"]["name"] == employer["name"]:
+                            salary = None
+                            if vacancy["salary"] is not None:
+                                if vacancy["salary"]["from"] is not None:
+                                    salary = vacancy["salary"]["from"]
+                                else:
+                                    salary = vacancy["salary"]["to"]
                             cur.execute(
                                 """
                                 INSERT INTO vacancies (employer_id, name, salary, vacancy_url)
                                 VALUES (%s, %s, %s, %s)
                                 """,
-                                (employer['employer_id'], vacancy['name'], vacancy['salary'], vacancy['url'])
+                                (employer["employer_id"], vacancy["name"], salary, vacancy["apply_alternate_url"]),
                             )
         conn.commit()
 
@@ -183,7 +203,7 @@ class DBManager:
         Получить список всех компаний и количество вакансий
         в каждой компании
         """
-
+        result = []
         conn = psycopg2.connect(dbname=self.__db_name, **self.__params)
         with conn.cursor() as cur:
             cur.execute(
@@ -193,22 +213,23 @@ class DBManager:
                 GROUP BY employers.name
                 """
             )
-            #JOIN vacancies USING(employer_id)
+            # JOIN vacancies USING(employer_id)
             rows = cur.fetchall()
             print(rows)
 
-            result = []
             for row in rows:
-                result.append({'employer': row[0], 'count_vacncies': row[1]})
+                result.append({"employer": row[0], "count_vacncies": row[1]})
 
-            return result
+        conn.close()
+        return result
 
-    def get_all_vacancies(self):
+    def get_all_vacancies(self) -> list[dict]:
         """
         Получить список всех вакансий с указанием названия компании,
         названия вакансии, зарплаты и ссылки на вакансию
         """
 
+        result = []
         conn = psycopg2.connect(dbname=self.__db_name, **self.__params)
         with conn.cursor() as cur:
             cur.execute(
@@ -220,13 +241,17 @@ class DBManager:
             )
 
             rows = cur.fetchall()
-            print(rows)
+            for row in rows:
+                result.append({"employer": row[0], "vacancy": row[1], "salary": row[2], "url": row[3]})
+
+        conn.close()
+        return result
 
     def get_avg_salary(self) -> int:
         """
         Получить среднюю зарплату по вакансиям
         """
-
+        result: int = 0
         conn = psycopg2.connect(dbname=self.__db_name, **self.__params)
         with conn.cursor() as cur:
             cur.execute(
@@ -235,14 +260,18 @@ class DBManager:
                 """
             )
 
-            return cur.fetchone()[0]
+            result = int(cur.fetchone()[0])
 
-    def get_vacancies_with_higher_salary(self, salary_min):
+        conn.close()
+        return result
+
+    def get_vacancies_with_higher_salary(self, salary_min: int) -> list[dict]:
         """
         Получить список вакансий, у которых зарплата выше среднего
         значения по всем зарплатам
         """
 
+        result = []
         conn = psycopg2.connect(dbname=self.__db_name, **self.__params)
         with conn.cursor() as cur:
             cur.execute(
@@ -252,8 +281,38 @@ class DBManager:
                 JOIN vacancies as v USING(employer_id)
                 WHERE v.salary > %s
                 """,
-                (salary_min, )
+                (salary_min,),
             )
 
             rows = cur.fetchall()
-            print(rows)
+            for row in rows:
+                result.append({"employer": row[0], "vacancy": row[1], "salary": row[2], "url": row[3]})
+
+        conn.close()
+        return result
+
+    def get_vacancies_with_keyword(self, keywords: str) -> list[dict]:
+        """
+        Получить список всех вакансий, в названии которых содержатся
+        слова keywords
+        """
+
+        result = []
+        conn = psycopg2.connect(dbname=self.__db_name, **self.__params)
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT e.name, v.name, v.salary, v.vacancy_url
+                FROM employers as e
+                JOIN vacancies as v USING(employer_id)
+                WHERE v.name LIKE %s
+                """,
+                (f"%{keywords}%",),
+            )
+
+            rows = cur.fetchall()
+            for row in rows:
+                result.append({"employer": row[0], "vacancy": row[1], "salary": row[2], "url": row[3]})
+
+        conn.close()
+        return result
