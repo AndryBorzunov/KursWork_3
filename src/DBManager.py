@@ -72,7 +72,7 @@ class DBManager:
         with conn.cursor() as cur:
             cur.execute("SELECT to_regclass(%s)", (table_name,))
             rows = cur.fetchone()
-            print(rows)
+            #print(rows)
             if rows is not None:
                 return rows[0] is not None
             else:
@@ -85,11 +85,11 @@ class DBManager:
         with conn.cursor() as cur:
             cur.execute("SELECT datname FROM pg_database;")  # WHERE datistemplate=false"))
             rows = cur.fetchall()
-            print(rows)
+            #print(rows)
 
             # Проверка наличия БД
             is_exist = cls.__check_exist_db(db_name, conn)
-            print(is_exist)
+            #print(is_exist)
             if not is_exist:
                 # Создаём базу данных
                 cur.execute(f"CREATE DATABASE {db_name}")
@@ -103,10 +103,10 @@ class DBManager:
         with conn.cursor() as cur:
             # Проверка наличия таблицы
             is_exist = cls.__check_exist_table("employers", conn)
-            print(is_exist)
+            #print(is_exist)
             if not is_exist:
                 # Создаём таблицу
-                print("Создаём таблицу employers")
+                #print("Создаём таблицу employers")
                 cur.execute(
                     """
                     CREATE TABLE employers (
@@ -128,10 +128,10 @@ class DBManager:
         with conn.cursor() as cur:
             # Проверка наличия таблицы
             is_exist = cls.__check_exist_table("vacancies", conn)
-            print(is_exist)
+            #print(is_exist)
             if not is_exist:
                 # Создаём таблицу
-                print("Создаём таблицу vacancies")
+                #print("Создаём таблицу vacancies")
                 cur.execute(
                     """
                       CREATE TABLE vacancies (
@@ -177,7 +177,7 @@ class DBManager:
                         employers.append({"employer_id": employer_id, "name": firm_name})
                         employer_names.append(firm_name)
 
-            print(employers)
+            #print(employers)
 
             for employer in employers:
                 for vacancy in data:
@@ -215,10 +215,10 @@ class DBManager:
             )
             # JOIN vacancies USING(employer_id)
             rows = cur.fetchall()
-            print(rows)
+            #print(rows)
 
             for row in rows:
-                result.append({"employer": row[0], "count_vacncies": row[1]})
+                result.append({"employer": row[0], "count_vacancies": row[1]})
 
         conn.close()
         return result
