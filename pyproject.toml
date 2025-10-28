@@ -7,8 +7,38 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
+poetry-core = "^2.2.1"
+psycopg2-binary = "^2.9.10"
+types-psycopg2 = "^2.9.21.20251012"
+requests = "^2.32.5"
+types-requests = "^2.32.4.20250913"
 
+[tool.poetry.group.lint.dependencies]
+flake8 = "^7.3.0"
+mypy = "^1.18.2"
+black = "^25.9.0"
+isort = "^6.1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.2"
+pytest-cov = "^7.0.0"
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 119
+exclude = '''
+(
+    \.git
+)
+'''
+
+[tool.isort]
+line_length = 119
+
+[tool.mypy]
+disallow_untyped_defs = true
+warn_return_any = true
+exclude = 'venv'
